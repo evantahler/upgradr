@@ -1,0 +1,6 @@
+"$schema" = "https://conductor.build/schemas/settings.repo.schema.json"
+
+[scripts]
+setup = "bash .conductor/setup.sh"
+run = "bun test --watch"
+archive = "bash .conductor/archive.sh"
