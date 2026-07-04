@@ -9,6 +9,12 @@ export interface UpdateInfo {
   /** `current > latest` — running ahead of the published release (dev build). */
   aheadOfLatest: boolean;
   changelog?: string;
+  /**
+   * Set when the latest version could not be determined (registry non-OK,
+   * network failure, timeout, or offline). When present, `hasUpdate` is `false`
+   * because the check did not complete — not because the CLI is current.
+   */
+  error?: string;
 }
 
 /** The persisted result of a previous check (see `cache.ts`). */
@@ -24,24 +30,28 @@ export function isNewerVersion(current: string, latest: string): boolean {
   return Bun.semver.order(current, latest) === -1;
 }
 
-/** Fetch the latest published version from the npm registry. Falls back to `currentVersion` on error. */
+/**
+ * Fetch the latest published version from the npm registry. Returns `null` when
+ * the version could not be determined (registry non-OK, network failure,
+ * timeout, or offline) so callers can distinguish "confirmed current" from
+ * "couldn't check".
+ */
 export async function fetchLatestVersion(opts: {
   packageName: string;
-  currentVersion: string;
   fetchImpl?: FetchLike;
   signal?: AbortSignal;
-}): Promise<string> {
+}): Promise<string | null> {
   const doFetch = opts.fetchImpl ?? fetch;
   try {
     const res = await doFetch(
       `https://registry.npmjs.org/${opts.packageName}/latest`,
       { signal: opts.signal },
     );
-    if (!res.ok) return opts.currentVersion;
+    if (!res.ok) return null;
     const data = (await res.json()) as { version: string };
     return data.version;
   } catch {
-    return opts.currentVersion;
+    return null;
   }
 }
 
@@ -98,10 +108,21 @@ export async function checkForUpdate(opts: {
 }): Promise<UpdateInfo> {
   const latestVersion = await fetchLatestVersion({
     packageName: opts.packageName,
-    currentVersion: opts.currentVersion,
     fetchImpl: opts.fetchImpl,
     signal: opts.signal,
   });
+
+  if (latestVersion === null) {
+    // The check did not complete — surface it rather than reporting "current".
+    return {
+      currentVersion: opts.currentVersion,
+      latestVersion: opts.currentVersion,
+      hasUpdate: false,
+      aheadOfLatest: false,
+      error: `Could not determine the latest version of "${opts.packageName}" from the npm registry.`,
+    };
+  }
+
   const hasUpdate = isNewerVersion(opts.currentVersion, latestVersion);
   const aheadOfLatest = isNewerVersion(latestVersion, opts.currentVersion);
 
