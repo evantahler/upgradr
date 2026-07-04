@@ -1,6 +1,6 @@
 {
   "name": "upgradr",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Self-update for Bun CLIs: check npm for a newer release, then upgrade in place via npm/bun or a GitHub release binary.",
   "type": "module",
   "license": "MIT",

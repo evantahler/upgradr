@@ -101,9 +101,29 @@ if (!result.hasUpdate) {
 | `checkIntervalMs` | | 24h | How long a cached check stays fresh. |
 | `timeoutMs` | | 5000 | Timeout for the background network check. |
 | `backgroundSkipCommands` | | `["check-update","upgrade"]` | Commands that suppress the startup notice. |
+| `formatNotice` | | built-in | `(ctx) => string` to fully render the startup notice. |
 | `assetName` | | — | `(target) => string` to fully override the release asset name. |
 | `fetchImpl` | | global `fetch` | Injectable `fetch` (for testing). |
 | `onProgress` | | no-op | Progress callback (e.g. the sudo heads-up during a binary swap). |
+
+## Customizing the notice
+
+By default the startup notice is a yellow "Update available" header, an optional
+dimmed changelog, and a cyan `Run <cli> upgrade` hint. Pass `formatNotice` to render
+it yourself — you get the update details and return the whole string. The built-in
+renderer is exported, so you can compose with it:
+
+```ts
+import { createUpdater, formatNotice } from "upgradr";
+
+const updater = createUpdater({
+  // …required config…
+  formatNotice: (ctx) =>
+    `${formatNotice(ctx)}\n  (docs: https://example.com/changelog)\n`,
+});
+```
+
+`ctx` is `{ currentVersion, latestVersion, changelog?, cliName }`.
 
 ## Install-method detection
 

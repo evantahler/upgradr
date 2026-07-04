@@ -18,6 +18,18 @@ export interface AssetTarget {
   arch: string;
 }
 
+/** Data passed to a custom {@link UpdaterConfig.formatNotice} renderer. */
+export interface NoticeContext {
+  /** The currently-running version. */
+  currentVersion: string;
+  /** The newer version available. */
+  latestVersion: string;
+  /** Release changelog, when one was fetched. */
+  changelog?: string;
+  /** Display name for the CLI (see {@link UpdaterConfig.cliName}). */
+  cliName: string;
+}
+
 /**
  * Configuration for {@link createUpdater}. Every value that would otherwise be
  * hardcoded to a specific project (repo, package name, cache location, …) is a
@@ -50,6 +62,12 @@ export interface UpdaterConfig {
   timeoutMs?: number;
   /** Commands for which the background notice is suppressed. Defaults to `["check-update", "upgrade"]`. */
   backgroundSkipCommands?: string[];
+  /**
+   * Render the whole background notice string. Receives the update details and
+   * returns the text shown to the user. Defaults to the built-in {@link formatNotice},
+   * which you can import and compose with (e.g. prefix or suffix its output).
+   */
+  formatNotice?: (ctx: NoticeContext) => string;
   /** Override the full release asset name for a platform. */
   assetName?: (target: AssetTarget) => string;
   /** Injectable `fetch` (for testing). Defaults to the global `fetch`. */
@@ -71,6 +89,7 @@ export interface ResolvedConfig {
   checkIntervalMs: number;
   timeoutMs: number;
   backgroundSkipCommands: string[];
+  formatNotice: ((ctx: NoticeContext) => string) | undefined;
   assetName: ((target: AssetTarget) => string) | undefined;
   fetchImpl: FetchLike;
   onProgress: (message: string) => void;
@@ -96,6 +115,7 @@ export function resolveConfig(config: UpdaterConfig): ResolvedConfig {
     timeoutMs: config.timeoutMs ?? DEFAULT_TIMEOUT_MS,
     backgroundSkipCommands:
       config.backgroundSkipCommands ?? DEFAULT_BACKGROUND_SKIP_COMMANDS,
+    formatNotice: config.formatNotice,
     assetName: config.assetName,
     fetchImpl: config.fetchImpl ?? fetch,
     onProgress: config.onProgress ?? (() => {}),

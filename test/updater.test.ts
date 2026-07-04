@@ -128,4 +128,30 @@ describe("createUpdater.maybeBackgroundNotice", () => {
     expect(notice).toContain("Update available: 1.0.0 → 3.0.0");
     expect(notice).toContain("myapp upgrade");
   });
+
+  test("uses a custom formatNotice renderer when provided", async () => {
+    const cacheDir = tmp();
+    await saveCache(cacheDir, {
+      lastCheckAt: new Date().toISOString(),
+      latestVersion: "3.0.0",
+      hasUpdate: true,
+      changelog: "## v3.0.0\nbig",
+    });
+    const updater = createUpdater(
+      baseConfig({
+        cacheDir,
+        cliName: "myapp",
+        fetchImpl: noNet,
+        formatNotice: (ctx) =>
+          `custom ${ctx.cliName} ${ctx.currentVersion}->${ctx.latestVersion}`,
+      }),
+    );
+    const notice = await updater.maybeBackgroundNotice({
+      env: {},
+      argv: ["node", "myapp", "chat"],
+      isTTY: true,
+    });
+    expect(notice).toBe("custom myapp 1.0.0->3.0.0");
+    expect(notice).not.toContain("Update available:");
+  });
 });
