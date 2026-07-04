@@ -1,7 +1,7 @@
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { $ } from "bun";
-import type { AssetTarget } from "./config.ts";
+import type { AssetTarget, FetchLike } from "./config.ts";
 
 /** Outcome of a binary or package-manager install attempt. */
 export interface InstallOutcome {
@@ -50,7 +50,10 @@ export async function upgradeWithPackageManager(
   const result = await $`${command} ${args}`.nothrow();
   return result.exitCode === 0
     ? { success: true }
-    : { success: false, error: `${command} exited with code ${result.exitCode}` };
+    : {
+        success: false,
+        error: `${command} exited with code ${result.exitCode}`,
+      };
 }
 
 /**
@@ -62,7 +65,7 @@ export async function upgradeFromBinary(opts: {
   latestVersion: string;
   binaryName: string;
   assetName?: (target: AssetTarget) => string;
-  fetchImpl?: typeof fetch;
+  fetchImpl?: FetchLike;
   onProgress?: (message: string) => void;
 }): Promise<InstallOutcome> {
   const doFetch = opts.fetchImpl ?? fetch;
@@ -81,7 +84,10 @@ export async function upgradeFromBinary(opts: {
   try {
     const res = await doFetch(url);
     if (!res.ok) {
-      return { success: false, error: `Failed to download binary: HTTP ${res.status}` };
+      return {
+        success: false,
+        error: `Failed to download binary: HTTP ${res.status}`,
+      };
     }
 
     const bytes = await res.arrayBuffer();
