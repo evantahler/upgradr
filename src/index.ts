@@ -30,6 +30,7 @@ export type {
   AssetTarget,
   FetchLike,
   InstallMethod,
+  NoticeContext,
   ResolvedConfig,
   UpdaterConfig,
 } from "./config.ts";

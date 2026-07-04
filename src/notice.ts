@@ -1,27 +1,22 @@
 import { cyan, dim, yellow } from "ansis";
 import { loadCache, saveCache } from "./cache.ts";
 import { checkForUpdate, needsCheck, type UpdateCache } from "./checker.ts";
-import type { ResolvedConfig } from "./config.ts";
+import type { NoticeContext, ResolvedConfig } from "./config.ts";
 
 /** Format the "update available" notice shown on startup. */
-export function formatNotice(opts: {
-  currentVersion: string;
-  latestVersion: string;
-  changelog?: string;
-  cliName: string;
-}): string {
+export function formatNotice(ctx: NoticeContext): string {
   const lines: string[] = [
     "",
-    yellow(`Update available: ${opts.currentVersion} → ${opts.latestVersion}`),
+    yellow(`Update available: ${ctx.currentVersion} → ${ctx.latestVersion}`),
   ];
 
-  if (opts.changelog) {
+  if (ctx.changelog) {
     lines.push("");
-    lines.push(dim(opts.changelog));
+    lines.push(dim(ctx.changelog));
   }
 
   lines.push("");
-  lines.push(cyan(`Run \`${opts.cliName} upgrade\` to update`));
+  lines.push(cyan(`Run \`${ctx.cliName} upgrade\` to update`));
   lines.push("");
 
   return lines.join("\n");
@@ -59,12 +54,13 @@ export async function maybeBackgroundNotice(
     // Only show in an interactive terminal.
     if (!isTTY) return null;
 
+    const render = cfg.formatNotice ?? formatNotice;
     const cache = await loadCache(cfg.cacheDir);
 
     if (!needsCheck(cache, cfg.checkIntervalMs)) {
       // Cache is fresh — use the cached result.
       if (cache?.hasUpdate) {
-        return formatNotice({
+        return render({
           currentVersion: cfg.currentVersion,
           latestVersion: cache.latestVersion,
           changelog: cache.changelog,
@@ -96,7 +92,7 @@ export async function maybeBackgroundNotice(
       await saveCache(cfg.cacheDir, newCache);
 
       if (info.hasUpdate) {
-        return formatNotice({
+        return render({
           currentVersion: cfg.currentVersion,
           latestVersion: info.latestVersion,
           changelog: info.changelog,
