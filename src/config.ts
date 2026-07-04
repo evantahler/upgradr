@@ -1,6 +1,15 @@
 /** How the current binary/script was installed. */
 export type InstallMethod = "npm" | "bun" | "binary" | "local-dev";
 
+/**
+ * A minimal `fetch`-compatible function. The global `fetch` satisfies this;
+ * tests can supply a stub without implementing `fetch.preconnect`.
+ */
+export type FetchLike = (
+  input: string | URL | Request,
+  init?: RequestInit,
+) => Promise<Response>;
+
 /** Platform descriptor passed to a custom {@link UpdaterConfig.assetName}. */
 export interface AssetTarget {
   /** `process.platform` value, e.g. `"darwin"`, `"linux"`, `"win32"`. */
@@ -44,7 +53,7 @@ export interface UpdaterConfig {
   /** Override the full release asset name for a platform. */
   assetName?: (target: AssetTarget) => string;
   /** Injectable `fetch` (for testing). Defaults to the global `fetch`. */
-  fetchImpl?: typeof fetch;
+  fetchImpl?: FetchLike;
   /** Called with human-readable progress messages (e.g. sudo prompts). Defaults to a no-op. */
   onProgress?: (message: string) => void;
 }
@@ -63,7 +72,7 @@ export interface ResolvedConfig {
   timeoutMs: number;
   backgroundSkipCommands: string[];
   assetName: ((target: AssetTarget) => string) | undefined;
-  fetchImpl: typeof fetch;
+  fetchImpl: FetchLike;
   onProgress: (message: string) => void;
 }
 

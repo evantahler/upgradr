@@ -1,4 +1,4 @@
-import type { InstallMethod } from "./config.ts";
+import type { FetchLike, InstallMethod } from "./config.ts";
 
 /** The result of checking for an update. */
 export interface UpdateInfo {
@@ -28,7 +28,7 @@ export function isNewerVersion(current: string, latest: string): boolean {
 export async function fetchLatestVersion(opts: {
   packageName: string;
   currentVersion: string;
-  fetchImpl?: typeof fetch;
+  fetchImpl?: FetchLike;
   signal?: AbortSignal;
 }): Promise<string> {
   const doFetch = opts.fetchImpl ?? fetch;
@@ -50,7 +50,7 @@ export async function fetchChangelog(opts: {
   repo: string;
   fromVersion: string;
   toVersion: string;
-  fetchImpl?: typeof fetch;
+  fetchImpl?: FetchLike;
   signal?: AbortSignal;
 }): Promise<string | undefined> {
   const doFetch = opts.fetchImpl ?? fetch;
@@ -93,7 +93,7 @@ export async function checkForUpdate(opts: {
   packageName: string;
   repo: string;
   currentVersion: string;
-  fetchImpl?: typeof fetch;
+  fetchImpl?: FetchLike;
   signal?: AbortSignal;
 }): Promise<UpdateInfo> {
   const latestVersion = await fetchLatestVersion({

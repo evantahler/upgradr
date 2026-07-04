@@ -46,7 +46,7 @@ export async function maybeBackgroundNotice(
   try {
     const env = overrides?.env ?? process.env;
     const argv = overrides?.argv ?? process.argv;
-    const isTTY = overrides?.isTTY ?? (process.stderr.isTTY ?? false);
+    const isTTY = overrides?.isTTY ?? process.stderr.isTTY ?? false;
 
     // Opt-out via env var.
     if (cfg.noUpdateCheckEnv && env[cfg.noUpdateCheckEnv] === "1") return null;
