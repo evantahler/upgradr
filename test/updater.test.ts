@@ -65,6 +65,27 @@ describe("createUpdater.upgrade", () => {
     expect(cache?.hasUpdate).toBe(false);
     expect(cache?.latestVersion).toBe("1.0.0");
   });
+
+  test("reports failure (not success) when the registry check fails", async () => {
+    const cacheDir = tmp();
+    const fetchImpl = (async (url: string | URL | Request) => {
+      if (String(url).includes("registry.npmjs.org")) {
+        return new Response("", { status: 503 });
+      }
+      return jsonResponse([]);
+    }) satisfies FetchLike;
+
+    const updater = createUpdater(baseConfig({ cacheDir, fetchImpl }));
+    const result = await updater.upgrade();
+
+    expect(result.hasUpdate).toBe(false);
+    expect(result.performed).toBe(false);
+    expect(result.success).toBe(false);
+    expect(result.error).toBeDefined();
+
+    // A failed check must not poison the cache.
+    expect(await loadCache(cacheDir)).toBeUndefined();
+  });
 });
 
 describe("createUpdater.maybeBackgroundNotice", () => {
@@ -127,6 +148,26 @@ describe("createUpdater.maybeBackgroundNotice", () => {
     });
     expect(notice).toContain("Update available: 1.0.0 → 3.0.0");
     expect(notice).toContain("myapp upgrade");
+  });
+
+  test("null and no cache write when the check fails", async () => {
+    const cacheDir = tmp();
+    const fetchImpl = (async (url: string | URL | Request) => {
+      if (String(url).includes("registry.npmjs.org")) {
+        return new Response("", { status: 429 });
+      }
+      return jsonResponse([]);
+    }) satisfies FetchLike;
+
+    const updater = createUpdater(baseConfig({ cacheDir, fetchImpl }));
+    const notice = await updater.maybeBackgroundNotice({
+      env: {},
+      argv: ["node", "myapp", "chat"],
+      isTTY: true,
+    });
+    expect(notice).toBeNull();
+    // A failed check must not be cached — the next run should retry.
+    expect(await loadCache(cacheDir)).toBeUndefined();
   });
 
   test("uses a custom formatNotice renderer when provided", async () => {

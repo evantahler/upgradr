@@ -122,12 +122,6 @@ export function createUpdater(config: UpdaterConfig): Updater {
       // Always re-check: the background cache may be fresh but stale relative
       // to a release that shipped since the last check.
       const info = await checkFresh();
-      await saveCache(cfg.cacheDir, {
-        lastCheckAt: new Date().toISOString(),
-        latestVersion: info.latestVersion,
-        hasUpdate: info.hasUpdate,
-        changelog: info.changelog,
-      });
 
       const method = detectInstallMethodImpl({
         localDevEntry: cfg.localDevEntry,
@@ -138,6 +132,18 @@ export function createUpdater(config: UpdaterConfig): Updater {
         to: info.latestVersion,
         hasUpdate: info.hasUpdate,
       };
+
+      // The check itself failed — don't cache a bogus result or report success.
+      if (info.error) {
+        return { ...base, performed: false, success: false, error: info.error };
+      }
+
+      await saveCache(cfg.cacheDir, {
+        lastCheckAt: new Date().toISOString(),
+        latestVersion: info.latestVersion,
+        hasUpdate: info.hasUpdate,
+        changelog: info.changelog,
+      });
 
       if (!info.hasUpdate) {
         return { ...base, performed: false, success: true };
