@@ -1,6 +1,6 @@
 {
   "name": "upgradr",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Self-update for Bun CLIs: check npm for a newer release, then upgrade in place via npm/bun or a GitHub release binary.",
   "type": "module",
   "license": "MIT",
@@ -28,7 +28,11 @@
   },
   "main": "./src/index.ts",
   "types": "./src/index.ts",
-  "files": ["src", "README.md", "LICENSE"],
+  "files": [
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "test": "bun test",
     "lint": "tsc --noEmit && biome check .",
