@@ -68,20 +68,17 @@ jobs:
     needs: [check-version, ci]
     if: needs.check-version.outputs.should_release == 'true'
     runs-on: ubuntu-latest
+    # npm trusted publishing (OIDC) — no NPM_TOKEN. Requires a trusted publisher
+    # configured for this package on npmjs.com pointing at this repo + workflow,
+    # and npm >= 11.5.1. Provenance is attested automatically via id-token.
     permissions:
       contents: read
       id-token: write
     steps:
       - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
       - uses: actions/setup-node@v4
         with:
-          node-version: "22.14.0"
+          node-version: "22"
           registry-url: "https://registry.npmjs.org"
-      - run: npm install -g npm@11.5.1
-      - run: bun install --frozen-lockfile
+      - run: npm install -g npm@latest
       - run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

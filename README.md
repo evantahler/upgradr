@@ -218,9 +218,9 @@ jobs:
 
 **Repo setup checklist**
 
-1. Add an `NPM_TOKEN` secret (a granular **automation** token) — `Settings → Secrets and variables → Actions`.
+1. Authenticate npm publishing. Preferred: **trusted publishing (OIDC)** — configure a trusted publisher for your package on npmjs.com pointing at this repo + workflow, keep `id-token: write`, use npm ≥ 11.5.1, and drop `NODE_AUTH_TOKEN` entirely (as this repo's own `release.yml` does). Alternative: an `NPM_TOKEN` automation-token secret + `NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}`.
 2. Allow Actions to write releases — `Settings → Actions → General → Workflow permissions → Read and write` (or the per-job `permissions:` above).
-3. For npm provenance, keep `id-token: write` on the publish job and publish from CI (not locally).
+3. For provenance, keep `id-token: write` on the publish job and publish from CI (not locally).
 4. First install for users is a shell one-liner that pulls the same assets:
    `curl -fsSL https://github.com/<repo>/releases/latest/download/<binaryName>-$(uname -s)-$(uname -m) -o your-cli` (normalize `uname` output to the `darwin|linux` / `arm64|x64` names above).
 
