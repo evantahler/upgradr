@@ -63,7 +63,11 @@ notice.then((msg) => {
 
 ```ts
 const info = await updater.checkForUpdate();
-if (info.hasUpdate) {
+if (info.error) {
+  // The check didn't complete (offline, rate-limited, registry down, …) —
+  // this is distinct from "confirmed up to date".
+  console.error(`Update check failed: ${info.error}`);
+} else if (info.hasUpdate) {
   console.log(`Update available: ${info.currentVersion} → ${info.latestVersion}`);
   if (info.changelog) console.log(info.changelog);
 } else if (info.aheadOfLatest) {
@@ -78,7 +82,11 @@ if (info.hasUpdate) {
 ```ts
 const result = await updater.upgrade(); // always performs a fresh check first
 
-if (!result.hasUpdate) {
+if (!result.success && !result.performed && result.error) {
+  // The check couldn't complete — don't claim "up to date".
+  console.error(result.error);
+  process.exit(1);
+} else if (!result.hasUpdate) {
   console.log(`Already up to date (v${result.from})`);
 } else if (result.method === "local-dev") {
   console.log("Running from source. Use `git pull && bun install` to update.");

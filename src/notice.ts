@@ -83,6 +83,10 @@ export async function maybeBackgroundNotice(
         signal: controller.signal,
       });
 
+      // Only cache a completed check — a failed check must not suppress the
+      // next attempt (nor be silently reported as "up to date").
+      if (info.error) return null;
+
       const newCache: UpdateCache = {
         lastCheckAt: new Date().toISOString(),
         latestVersion: info.latestVersion,

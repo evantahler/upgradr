@@ -104,33 +104,21 @@ describe("fetchLatestVersion", () => {
   test("returns the registry version", async () => {
     const fetchImpl = (async () =>
       jsonResponse({ version: "2.5.0" })) satisfies FetchLike;
-    const v = await fetchLatestVersion({
-      packageName: "x",
-      currentVersion: "1.0.0",
-      fetchImpl,
-    });
+    const v = await fetchLatestVersion({ packageName: "x", fetchImpl });
     expect(v).toBe("2.5.0");
   });
-  test("falls back to currentVersion on non-2xx", async () => {
+  test("returns null on non-2xx", async () => {
     const fetchImpl = (async () =>
       new Response("", { status: 500 })) satisfies FetchLike;
-    const v = await fetchLatestVersion({
-      packageName: "x",
-      currentVersion: "1.0.0",
-      fetchImpl,
-    });
-    expect(v).toBe("1.0.0");
+    const v = await fetchLatestVersion({ packageName: "x", fetchImpl });
+    expect(v).toBeNull();
   });
-  test("falls back to currentVersion when fetch throws", async () => {
+  test("returns null when fetch throws", async () => {
     const fetchImpl = (async () => {
       throw new Error("offline");
     }) satisfies FetchLike;
-    const v = await fetchLatestVersion({
-      packageName: "x",
-      currentVersion: "1.2.3",
-      fetchImpl,
-    });
-    expect(v).toBe("1.2.3");
+    const v = await fetchLatestVersion({ packageName: "x", fetchImpl });
+    expect(v).toBeNull();
   });
 });
 
@@ -207,5 +195,27 @@ describe("checkForUpdate", () => {
     });
     expect(info.hasUpdate).toBe(false);
     expect(changelogFetched).toBe(false);
+  });
+
+  test("surfaces an error instead of reporting current when the check fails", async () => {
+    let changelogFetched = false;
+    const fetchImpl = (async (url: string | URL | Request) => {
+      const u = String(url);
+      if (u.includes("registry.npmjs.org"))
+        return new Response("", { status: 429 });
+      changelogFetched = true;
+      return jsonResponse([]);
+    }) satisfies FetchLike;
+
+    const info = await checkForUpdate({
+      packageName: "x",
+      repo: "o/r",
+      currentVersion: "1.0.0",
+      fetchImpl,
+    });
+    expect(info.hasUpdate).toBe(false);
+    expect(info.aheadOfLatest).toBe(false);
+    expect(info.error).toBeDefined();
+    expect(changelogFetched).toBe(false); // no changelog when the check failed
   });
 });
