@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { clearCache, loadCache, saveCache } from "../src/cache.ts";
@@ -43,7 +43,7 @@ describe("cache", () => {
 
   test("load returns undefined on corrupt JSON", async () => {
     const dir = tmp();
-    await Bun.write(join(dir, "update.json"), "{ not json");
+    writeFileSync(join(dir, "update.json"), "{ not json");
     expect(await loadCache(dir)).toBeUndefined();
   });
 });

@@ -22,10 +22,24 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun test
 
+  # Build the published JS and prove it imports and runs under plain Node.js —
+  # guards against a Bun-only API sneaking back into src/.
+  node-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run build
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+      - run: node scripts/node-smoke.js
+
   complete:
     runs-on: ubuntu-latest
     if: always()
-    needs: [lint, test]
+    needs: [lint, test, node-smoke]
     steps:
       - if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
         run: exit 1
