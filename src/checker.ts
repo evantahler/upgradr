@@ -1,3 +1,4 @@
+import lt from "semver/functions/lt.js";
 import type { FetchLike, InstallMethod } from "./config.ts";
 
 /** The result of checking for an update. */
@@ -27,7 +28,12 @@ export interface UpdateCache {
 
 /** Compare two semver strings. Returns true if `latest > current`. */
 export function isNewerVersion(current: string, latest: string): boolean {
-  return Bun.semver.order(current, latest) === -1;
+  try {
+    return lt(current, latest, { loose: true });
+  } catch {
+    // Unparseable version (e.g. a non-semver git tag) is never "newer".
+    return false;
+  }
 }
 
 /**

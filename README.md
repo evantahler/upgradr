@@ -1,11 +1,12 @@
 # upgradr
 
-Self-update for [Bun](https://bun.sh) CLIs. `upgradr` checks npm for a newer
-release, shows a non-blocking startup notice, and upgrades your tool in place —
-via `npm`/`bun` global install or by swapping a GitHub release binary.
+Self-update for [Bun](https://bun.sh) & [Node](https://nodejs.org) CLIs. `upgradr`
+checks npm for a newer release, shows a non-blocking startup notice, and upgrades
+your tool in place — via `npm`/`bun` global install or by swapping a GitHub release
+binary.
 
 It's the mechanism extracted from [Botholomew](https://github.com/evantahler/botholomew),
-generalized so any Bun CLI can drop it in.
+generalized so any Bun or Node CLI can drop it in.
 
 ## Features
 
@@ -19,9 +20,12 @@ generalized so any Bun CLI can drop it in.
 
 ```sh
 bun add upgradr
+# or
+npm install upgradr
 ```
 
-Requires the Bun runtime (uses `Bun.semver`, `Bun.file`, and `bun`'s shell).
+Runs on both Bun and Node (≥18). The package publishes compiled ESM (`dist/`), so
+Node projects consume it like any other library — no Bun runtime required.
 
 ## Usage
 

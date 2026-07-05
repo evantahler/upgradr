@@ -1,3 +1,4 @@
+import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { UpdateCache } from "./checker.ts";
 
@@ -10,10 +11,10 @@ export async function loadCache(
   cacheDir: string,
 ): Promise<UpdateCache | undefined> {
   try {
-    const file = Bun.file(cachePath(cacheDir));
-    if (!(await file.exists())) return undefined;
-    return JSON.parse(await file.text()) as UpdateCache;
+    const text = await readFile(cachePath(cacheDir), "utf8");
+    return JSON.parse(text) as UpdateCache;
   } catch {
+    // Missing file, unreadable, or invalid JSON — treat as no cache.
     return undefined;
   }
 }
@@ -24,9 +25,8 @@ export async function saveCache(
   cache: UpdateCache,
 ): Promise<void> {
   try {
-    const { mkdir } = await import("node:fs/promises");
     await mkdir(cacheDir, { recursive: true });
-    await Bun.write(cachePath(cacheDir), `${JSON.stringify(cache, null, 2)}\n`);
+    await writeFile(cachePath(cacheDir), `${JSON.stringify(cache, null, 2)}\n`);
   } catch {
     // Ignore write failures (e.g. permissions).
   }
@@ -35,12 +35,8 @@ export async function saveCache(
 /** Remove the cached update-check result. Never throws. */
 export async function clearCache(cacheDir: string): Promise<void> {
   try {
-    const file = Bun.file(cachePath(cacheDir));
-    if (await file.exists()) {
-      const { unlink } = await import("node:fs/promises");
-      await unlink(cachePath(cacheDir));
-    }
+    await unlink(cachePath(cacheDir));
   } catch {
-    // Ignore.
+    // Ignore (e.g. file already absent).
   }
 }

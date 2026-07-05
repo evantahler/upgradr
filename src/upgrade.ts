@@ -1,12 +1,33 @@
+import { execFile } from "node:child_process";
+import { chmod, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { $ } from "bun";
+import { promisify } from "node:util";
 import type { AssetTarget, FetchLike } from "./config.ts";
+
+const execFileAsync = promisify(execFile);
 
 /** Outcome of a binary or package-manager install attempt. */
 export interface InstallOutcome {
   success: boolean;
   error?: string;
+}
+
+/**
+ * Run a command without throwing, returning its exit code. Cross-runtime
+ * (Node + Bun) replacement for Bun's `$`…`.nothrow()`.
+ */
+async function run(
+  command: string,
+  args: string[],
+): Promise<{ exitCode: number }> {
+  try {
+    await execFileAsync(command, args);
+    return { exitCode: 0 };
+  } catch (err) {
+    const code = (err as { code?: number | string }).code;
+    return { exitCode: typeof code === "number" ? code : 1 };
+  }
 }
 
 /**
@@ -47,7 +68,7 @@ export async function upgradeWithPackageManager(
   command: string,
   args: string[],
 ): Promise<InstallOutcome> {
-  const result = await $`${command} ${args}`.nothrow();
+  const result = await run(command, args);
   return result.exitCode === 0
     ? { success: true }
     : {
@@ -91,17 +112,17 @@ export async function upgradeFromBinary(opts: {
     }
 
     const bytes = await res.arrayBuffer();
-    await Bun.write(tmpPath, bytes);
+    await writeFile(tmpPath, Buffer.from(bytes));
 
-    await $`chmod +x ${tmpPath}`.quiet();
+    await chmod(tmpPath, 0o755);
 
-    // Try to move into place.
-    const mv = await $`mv ${tmpPath} ${targetPath}`.quiet().nothrow();
+    // Try to move into place (mv handles cross-filesystem moves).
+    const mv = await run("mv", [tmpPath, targetPath]);
 
     if (mv.exitCode !== 0) {
       // Fall back to sudo.
       onProgress("Requires elevated permissions...");
-      const sudo = await $`sudo mv ${tmpPath} ${targetPath}`.nothrow();
+      const sudo = await run("sudo", ["mv", tmpPath, targetPath]);
       if (sudo.exitCode !== 0) {
         return {
           success: false,
@@ -113,7 +134,7 @@ export async function upgradeFromBinary(opts: {
     return { success: true };
   } catch (err) {
     // Clean up temp file.
-    await $`rm -f ${tmpPath}`.quiet().nothrow();
+    await unlink(tmpPath).catch(() => {});
     return { success: false, error: `Failed to upgrade binary: ${err}` };
   }
 }

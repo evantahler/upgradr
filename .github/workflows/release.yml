@@ -63,6 +63,11 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run lint
       - run: bun test
+      - run: bun run build
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+      - run: node scripts/node-smoke.js
 
   publish-npm:
     needs: [check-version, ci]
@@ -76,9 +81,15 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun run build
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
           registry-url: "https://registry.npmjs.org"
       - run: npm install -g npm@latest
-      - run: npm publish --provenance --access public
+      # dist/ is already built above; skip prepublishOnly to avoid a redundant rebuild.
+      - run: npm publish --provenance --access public --ignore-scripts
