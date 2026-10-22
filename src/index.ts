@@ -156,9 +156,12 @@ export function createUpdater(config: UpdaterConfig): Updater {
       let outcome: InstallOutcome;
       switch (method) {
         case "bun":
+          // upgradr just confirmed this version on the registry, so skip
+          // bun's manifest cache — it can lag right after a publish.
           outcome = await upgradeWithPackageManager("bun", [
             "install",
             "-g",
+            "--no-cache",
             `${cfg.packageName}@${info.latestVersion}`,
           ]);
           break;

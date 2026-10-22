@@ -13,21 +13,58 @@ export interface InstallOutcome {
   error?: string;
 }
 
+/** Max number of trailing output lines kept in an error message. */
+const OUTPUT_TAIL_LINES = 10;
+
+interface RunResult {
+  exitCode: number;
+  stdout: string;
+  stderr: string;
+  /** Spawn failure (e.g. ENOENT) when the command never ran. */
+  spawnError?: string;
+}
+
 /**
- * Run a command without throwing, returning its exit code. Cross-runtime
- * (Node + Bun) replacement for Bun's `$`…`.nothrow()`.
+ * Run a command without throwing, returning its exit code and output.
+ * Cross-runtime (Node + Bun) replacement for Bun's `$`…`.nothrow()`.
  */
-async function run(
+async function run(command: string, args: string[]): Promise<RunResult> {
+  try {
+    const { stdout, stderr } = await execFileAsync(command, args);
+    return { exitCode: 0, stdout: String(stdout), stderr: String(stderr) };
+  } catch (err) {
+    const e = err as {
+      code?: number | string;
+      stdout?: unknown;
+      stderr?: unknown;
+      message?: string;
+    };
+    return {
+      exitCode: typeof e.code === "number" ? e.code : 1,
+      stdout: String(e.stdout ?? ""),
+      stderr: String(e.stderr ?? ""),
+      spawnError: typeof e.code === "string" ? e.message : undefined,
+    };
+  }
+}
+
+/**
+ * Describe a failed {@link run}: the exact command, its exit code, and the
+ * tail of its stderr (or stdout when stderr is empty).
+ */
+function describeFailure(
   command: string,
   args: string[],
-): Promise<{ exitCode: number }> {
-  try {
-    await execFileAsync(command, args);
-    return { exitCode: 0 };
-  } catch (err) {
-    const code = (err as { code?: number | string }).code;
-    return { exitCode: typeof code === "number" ? code : 1 };
-  }
+  result: RunResult,
+): string {
+  const cmd = [command, ...args].join(" ");
+  if (result.spawnError) return `${cmd} failed: ${result.spawnError}`;
+  const output = (result.stderr.trim() || result.stdout.trim())
+    .split("\n")
+    .slice(-OUTPUT_TAIL_LINES)
+    .join("\n");
+  const head = `${cmd} exited with code ${result.exitCode}`;
+  return output ? `${head}:\n${output}` : head;
 }
 
 /**
@@ -71,10 +108,7 @@ export async function upgradeWithPackageManager(
   const result = await run(command, args);
   return result.exitCode === 0
     ? { success: true }
-    : {
-        success: false,
-        error: `${command} exited with code ${result.exitCode}`,
-      };
+    : { success: false, error: describeFailure(command, args, result) };
 }
 
 /**
@@ -122,11 +156,16 @@ export async function upgradeFromBinary(opts: {
     if (mv.exitCode !== 0) {
       // Fall back to sudo.
       onProgress("Requires elevated permissions...");
-      const sudo = await run("sudo", ["mv", tmpPath, targetPath]);
+      const sudoArgs = ["mv", tmpPath, targetPath];
+      const sudo = await run("sudo", sudoArgs);
       if (sudo.exitCode !== 0) {
+        await unlink(tmpPath).catch(() => {});
         return {
           success: false,
-          error: "Failed to install binary. Try running with sudo.",
+          error:
+            `Failed to install binary. Try running with sudo.\n` +
+            `${describeFailure("mv", [tmpPath, targetPath], mv)}\n` +
+            describeFailure("sudo", sudoArgs, sudo),
         };
       }
     }

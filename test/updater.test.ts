@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdtempSync, rmSync } from "node:fs";
+import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { loadCache, saveCache } from "../src/cache.ts";
@@ -85,6 +85,40 @@ describe("createUpdater.upgrade", () => {
 
     // A failed check must not poison the cache.
     expect(await loadCache(cacheDir)).toBeUndefined();
+  });
+
+  test("bun install bypasses the manifest cache and surfaces bun's error", async () => {
+    // A fake `bun` on PATH that fails the way a stale manifest cache does.
+    const binDir = tmp();
+    writeFileSync(
+      join(binDir, "bun"),
+      '#!/bin/sh\necho "error: No version matching \\"2.0.0\\" found" >&2\nexit 1\n',
+    );
+    chmodSync(join(binDir, "bun"), 0o755);
+
+    const fetchImpl = (async (url: string | URL | Request) => {
+      if (String(url).includes("registry.npmjs.org")) {
+        return jsonResponse({ version: "2.0.0" });
+      }
+      return jsonResponse([]);
+    }) satisfies FetchLike;
+
+    const origPath = process.env.PATH;
+    const origScript = process.argv[1];
+    process.env.PATH = `${binDir}:${origPath}`;
+    process.argv[1] = "/home/u/.bun/install/global/node_modules/myapp/cli.js";
+    try {
+      const result = await createUpdater(baseConfig({ fetchImpl })).upgrade();
+      expect(result.method).toBe("bun");
+      expect(result.performed).toBe(true);
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(
+        'bun install -g --no-cache myapp@2.0.0 exited with code 1:\nerror: No version matching "2.0.0" found',
+      );
+    } finally {
+      process.env.PATH = origPath;
+      process.argv[1] = origScript as string;
+    }
   });
 });
 
